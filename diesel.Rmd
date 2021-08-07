@@ -1,0 +1,290 @@
+---
+title: "Lab2Diesel"
+author: "Ayleen Rubio 19003"
+date: "6/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+knitr::opts_knit$set(root.dir="C:/Users/Ingebor Rubio/Desktop/Trabajos/Sexto Semestre/Data science/lab2/")
+
+```
+
+```{r echo=FALSE}
+library(forecast)
+library(tseries)
+library(fUnitRoots)
+library(ggfortify)
+library(lmtest)
+#library(prophet)
+```
+
+# Laboratorio 2: sección de Diesel
+
+## Consumo
+
+```{r limpieza, echo=FALSE}
+dataConsumo <- read.csv("DatosConsumoCombustibles.csv")
+datosConsumo <-dataConsumo[,c(2,3,7,8)]
+
+datosConsumo$Date <- with(datosConsumo, sprintf("%d-%02d", Anio, Mes))
+datosConsumo <- datosConsumo[,c(3,4,5)]
+datosC <- within(datosConsumo, {
+  Diesel = ifelse(is.na(Diesel),DieselLS,Diesel)
+})
+datosC <- datosC[,c(3,1)]
+datosC
+
+#Convertir a ts
+datosC.ts <- ts(datosC$Diesel,start = c(2001,1),frequency=12)
+#Separa entrenamiento y prueba
+train <- head(datosC.ts, round(length(datosC.ts) *0.7))
+h<- length(datosC.ts)-length(train)
+test <- tail(datosC.ts,h)
+
+```
+
+```{r}
+start(datosC.ts)
+end(datosC.ts)
+start(train)
+end(train)
+start(h)
+end(h)
+frequency(datosC.ts)
+```
+
+```{r}
+plot(datosC.ts)
+abline(reg=lm(datosC.ts~time(datosC.ts)), col=c("red"))
+```
+
+
+La serie de tiempo comienza en enero de 2001, termina en mayo de 2021 y tiene una frecuencia de 12, ya que los datos se tienen según los 12 meses de cada año.
+A simple vista puede observarse que, a pesar de tener altos y bajos, el consumo de combustible ha ido aumentando siguiendo una tendencia a lo largo de los años, teniendo picos tanto altos como bajos, también puede observarse que aproximadamente en 2009 y 2021, hubo caídas bastante significantes y más fuertes que las bajas en los picos entre otros años.
+
+Al no mantenerse constante a lo largo del tiempo, se puede decir que esta es una serie no estacionaria en cuanto a la media ya que tiene una tendencia creciente y tampoco es estacionaria respecto a la varianza, ya que hay varios puntos en los que la varianza puede tanto disminuir como aumentar, no se mantiene constante.
+
+Ahora, al descomponer la serie de tiempo, obtenemos lo siguiente: 
+
+```{r}
+dec.cdec <- decompose(datosC.ts)
+plot(dec.cdec)
+plot(dec.cdec$seasonal)
+```
+
+En los componentes podemos observar cómo es que, de hecho, no se tiene tendencia en la media, ya que se tiene una tendencia creciente. En cuanto a la varianza, puede observarse que esta no se mantiene constante, hay varianzas más pequeñas y otras más grandes, sin embargo, esto se podrá comprobar con coeficientes de correlación. En cuanto a estacionalidad, parece que sí tiene ya que el mismo patrón se repite constantemente. Podemos concluir finalmente que nuestra serie no es estacionaria, por lo que es necesario transformarla para poder predecir con ella.
+
+## Estimar los parámetros del modelo
+
+Debido a que no es estacionaria en varianza, primero es necesario aplicar transformación logarítmica con la serie de entrenamiento:
+
+```{r}
+logConsumoTrain <- log(train)
+lambda <- BoxCox.lambda(train)
+boxcoxTrain <-BoxCox(train, lambda)
+plot(decompose(logConsumoTrain))
+plot(logConsumoTrain)
+
+```
+
+Con esto se ha logrado que la varianza sea más constante, ahora es necesario verificar la estacionariedad en media. Es necesario verificar la existencia de raices unitarias, si se cuenta con ellas, esto quiere decir que no es estacionaria en media y hay que aplicar procesos de diferenciación.
+
+```{r}
+adfTest(train)
+unitrootTest(train)
+```
+
+En ambas pruebas puede observarse un valor mayor a 0.05 por lo que no es posible rechazar la hipótesis nula planteada, la cual indica que hay una ausencia de raices unitarias, lo cual significa que no es estacionaria en media. Aplicaremos una diferenciación para poder rechazar el hecho de que existan reices unitarias y que así nuestra serie de tiempo sea estacionaria en media.
+
+```{r}
+trainDiff <-diff(logConsumoTrain)
+adfTest(diff(train))
+```
+
+En ambas pruebas el valor p es menor que 0.05 por lo que ahora sí es posible rechazar la hipótesis nula y luego de una diferenciación, la serie de tiempo ya es estacionaria en media, esto quiere decir que d=1. Ahora para identificar los valores tanto de p como de q podemos utilizar los gráficos de autocorrelación y autocorrelación parcial.
+
+```{r}
+acf(logConsumoTrain,50)
+```
+
+Este gráfico se anula después del primer retardo, por lo que se puede decir que q = 1.
+
+```{r}
+pacf(logConsumoTrain,50)
+```
+
+Se anula después de un retardo por lo que p = 1. Finalmente, podemos elaborar un modelo con los parámetros d, p y q todos iguales a 1, es decir ARIMA(1,1,1)
+
+A continuación observaremos estacionalidad:
+
+```{r}
+decTrain <- decompose(train)
+plot(decTrain$seasonal)
+```
+
+Sí se cuenta con estacinalidad como puede observarse y para poder comprender este comportamiento se harán las funciones de autocorrelación y autocorrelación parcial con 36 resagos para determinar en qué momentos son los picos estacinales.
+
+```{r}
+acf(diff(logConsumoTrain),36)
+pacf(diff(logConsumoTrain),36)
+```
+
+EN la función de autocorrelación tenemos picos estacionales en 1, 2 y 3, en el caso de la autocorrelación parcial tenemos un pico significativo en 1.
+Con esto podemos inferir que los parámetros del componente estacional son P, Q = 1 y Q = 0.
+
+```{r}
+fitArima <- arima(logConsumoTrain,order=c(1,1,1),seasonal=c(1,1,0))
+```
+
+Es posible que R genere un modelo automático teniendo en cuenta los parámetros de la serie:
+
+```{r}
+fitAutoArima <- auto.arima(train)
+```
+
+## Significacion de los coeficientes
+
+Para poder verificar que tan significativos son los coeficientes de los modelos se puede hacer la siguiente prueba:
+```{r}
+coeftest(fitArima)
+```
+
+Dos de los coeficientes son significativos.
+
+```{r}
+coeftest(fitAutoArima)
+```
+
+con el modelo generado automáticamente, dos coeficientes son significativos.
+
+## Análisis de residuales
+
+Es necesario que los residuos no estén correlacionados entre sí y que se distributan normalmente, analizando esto con el modelo fitArima:
+
+```{r}
+qqnorm(fitArima$residuals)
+qqline(fitArima$residuals)
+checkresiduals(fitArima)
+```
+
+Al observar los gráficos obtenidos, los datos aparentan tener una distribución normal respecto a la forma de campana, también puede decirse que no hay correlaciones significativas y según el test de Ljung-Box, tenemos un valor p menor a 0.05, por lo que los datos no se distribuyen de forma independiente, esto quiere decir que se rechaza la hipótesis nula, por lo que no es posible predecir con el modelo generado.
+
+Ahora, utilizando el modelo generado automáticamente por R:
+
+```{r}
+qqnorm(fitAutoArima$residuals)
+qqline(fitAutoArima$residuals)
+checkresiduals(fitAutoArima)
+```
+
+En este caso también se cuenta con una distribución normal en cuanto a la forma de campana y no hay correlaciones significativas. En este caso el valor p es menor que 0.05 de igual forma por lo que también se rechaza la hipótesis nula y este modelo tampoco es aceptable para predecir.
+
+Debido a que ninguno de los dos modelos es aceptable para predecir, no se han podido utilizar.
+
+## Prophet
+
+Se ha intentado instalar prophet, sin embargo, se cuenta con el siguiente error: 
+Error: package or namespace load failed for ‘prophet’ in .doLoadActions(where, attach):
+ error in load action .__A__.1 for package prophet: Rcpp::loadModule(module = "stan_fit4prophet_mod", what = TRUE, : Unable to load module "stan_fit4prophet_mod": el paquete 'Rcpp_precious_remove' no ofrece la función 'Rcpp'
+ 
+por lo que la predicción por este medio tampoco es posible
+ 
+## Importación
+
+```{r}
+dataImportacion <- read.csv("DatosImportacionCombustibles.csv")
+datosImportacion <- dataImportacion[,c(2,3,7,8)]
+
+datosImportacion$Date <- with(datosImportacion, sprintf("%d-%02d", Anio, Mes))
+datosImportacion <- datosImportacion[,c(3,4,5)]
+
+datosI <- within(datosImportacion, {
+  Diesel = ifelse(is.na(Diesel),DieselLS,Diesel)
+})
+datosI <- datosI[,c(3,1)]
+
+datosI.ts <- ts(datosI$Diesel,start = c(2001,1),frequency=12)
+
+train <- head(datosI.ts, round(length(datosI.ts) *0.7))
+h<- length(datosI.ts)-length(train)
+test <- tail(datosI.ts,h)
+
+start(datosI.ts)
+end(datosI.ts)
+start(train)
+end(train)
+start(h)
+end(h)
+frequency(datosI.ts)
+
+plot(datosI.ts)
+abline(reg=lm(datosC.ts~time(datosC.ts)), col=c("red"))
+
+```
+
+La serie de tiempo comienza en enero de 2001, termina en mayo de 2021 y tiene una frecuencia de 12, ya que los datos se tienen según los 12 meses de cada año.
+A simple vista puede observarse que, a pesar de tener altos y bajos, la importación de combustible ha ido aumentando siguiendo una tendencia a lo largo de los años, teniendo picos tanto altos como bajos.
+
+Al no mantenerse constante a lo largo del tiempo, se puede decir que esta es una serie no estacionaria en cuanto a la media ya que tiene una tendencia creciente y tampoco es estacionaria respecto a la varianza, ya que hay varios puntos en los que la varianza puede tanto disminuir como aumentar, no se mantiene constante.
+
+Ahora, al descomponer la serie de tiempo, obtenemos lo siguiente: 
+
+
+```{r}
+dec.idec <- decompose(datosI.ts)
+plot(dec.idec)
+plot(dec.idec$seasonal)
+```
+
+En los componentes podemos observar cómo es que, de hecho, no se tiene tendencia en la media, ya que se tiene una tendencia creciente. En cuanto a la varianza, puede observarse que esta no se mantiene constante, hay varianzas más pequeñas y otras más grandes, sin embargo, esto se podrá comprobar con coeficientes de correlación. En cuanto a estacionalidad, parece que sí tiene ya que el mismo patrón se repite constantemente. Podemos concluir finalmente que nuestra serie no es estacionaria, por lo que es necesario transformarla para poder predecir con ella.
+
+## Estimar los parámetros del modelo
+
+Debido a que no es estacionaria en varianza, primero es necesario aplicar transformación logarítmica con la serie de entrenamiento:
+
+```{r}
+logiTrain <- log(train)
+lambda <- BoxCox.lambda(train)
+boxcoxTrain <-BoxCox(train, lambda)
+plot(decompose(logiTrain))
+plot(logiTrain)
+```
+
+Con esto se ha logrado que la varianza sea más constante, ahora es necesario verificar la estacionariedad en media. Es necesario verificar la existencia de raices unitarias, si se cuenta con ellas, esto quiere decir que no es estacionaria en media y hay que aplicar procesos de diferenciación.
+
+```{r}
+adfTest(train)
+unitrootTest(train)
+```
+
+En ambas pruebas puede observarse un valor mayor a 0.05 por lo que no es posible rechazar la hipótesis nula planteada, la cual indica que hay una ausencia de raices unitarias, lo cual significa que no es estacionaria en media. Aplicaremos una diferenciación para poder rechazar el hecho de que existan reices unitarias y que así nuestra serie de tiempo sea estacionaria en media.
+
+```{r}
+trainDiff <-diff(logiTrain)
+adfTest(diff(train))
+```
+
+El valor aún no es menor a 0.05 por lo que se necesita de otra diferenciación.
+
+```{r}
+trainDiff2 <-diff(trainDiff)
+dif1<-(diff(train))
+adfTest(diff(dif1))
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+
+
