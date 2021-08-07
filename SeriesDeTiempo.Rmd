@@ -1,0 +1,1157 @@
+---
+title: "Lab 2 Series De Tiempo"
+author: "Diego Alegria 15171, Ayleen Rubio 19003, Andrés Say 19705, Mario Sarmientos 17055"
+date: "23/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#Colocar la dirección de su carpeta
+knitr::opts_knit$set(root.dir="C:/Users/andre/OneDrive/Documentos/3er año/2do semestre/Data science/Laboratorio2-DS")
+#"C:/Users/andre/OneDrive/Documentos/3er año/2do semestre/Data science/Laboratorio2-DS"
+```
+
+# Laboratorio No. 2: Series de tiempo
+
+## Análisis Exploratorio
+
+A continuación se mostrará un resumen de cada una de las variables y el tipo 
+```{r carga, echo=FALSE}
+
+library(corrplot)
+library(ggplot2)
+library(dplyr)
+library(forecast)
+library(tseries)
+library(fUnitRoots)
+library(ggfortify)
+library(lmtest)
+library(xts)
+library(zoo)
+
+consumo <- read.csv("DatosConsumoCombustibles.csv")
+importacion <- read.csv("DatosImportacionCombustibles.csv")
+```
+## Datos y variables generales de consumo
+```{r datos consumo, echo=FALSE}
+#Summary
+summary(consumo)
+
+#str
+str(consumo)
+
+#table
+table(unlist(lapply(consumo, class)))
+```
+El dataset de consumo de combustible tiene 27 variables, de las cuales 4 son de tipo entera y 23 son numéricas.
+Se puede encontrar variables temporales como el mes y el año, desde 2000 a 2021 (que como son int representan numéricamente cada una de ellas). Las unidades por barriles de cada tipo de gasolina: GasolinaSuper, GasolinaRegular,TotalGasolinas,Diesel,DieselLS,Diesel,ULS, GLP (combustible alternativo: gas licuado de petróleo) y varios alternativos también, como Orimulsión, Kerosina (combustibles potentes) y derivados similares. La totalidad de combustible Diesel. Por último se tiene agentes accesorios de consumo relacionado como los Aceites lubricantes, grasas lubricantes, solvente, mezclas oleosas y ceras. También cabe mencionar que a simple vista hay una gran proporción de datos faltantes en las variables como DieselLS, DieselULS,turboJet, petCoke, naftas y todas los ogentes accesorios de consumo mencionados anteriormente.
+
+```{r datos importacion, echo=FALSE}
+#Summary
+summary(importacion)
+
+#str
+str(importacion)
+
+#table
+table(unlist(lapply(importacion, class)))
+```
+Luego, en el dataset de importación se tienen 29 variables en total de las cuales 6 son enteras y 23 son numéricas. De nuevo tenemos las temporales, mes y año, de 2001 a 20021. Luego están las variables de los galones de cada tipo de combustible y sus costos respectivos. De igual manera tenemos gasolinaSuper, GasolinaRegular, Diesel, DieselLS, GLP (las alternativas asociadas). El total de Diesel, el total gasolina en general, los combustibles derivados, además de los demás productos como los aceites, grasas, solventes, ceras etc. Por último se tiene el total mensual por la importación de cada una de ellas. 
+
+Se analizará las variables a estudiar del consumo, en este caso; gasolina super, gasolina Regular y Diesel en razón del tiempo. Mes y Año. Para determinar observaciones generales del set de datos. 
+
+## Consumo
+
+Primero se realizará el análisis con la información en el set de datos de consumo.
+
+### consumo de gasolina super por año
+
+```{r consumo anio vs super, echo=FALSE}
+df <- consumo[,c(2,4)]
+p<-ggplot(data=df, aes(x=Anio, y=GasolinaSuper)) +
+  geom_bar(stat="identity")
+p
+```
+
+En la gráfica de barras se muestra el consumo total de cada año de gasolina super, se puede evidenciar que hay un crecimiento en casi todos los años, mientras que al comienzo parece no canviar relativamente mucho, al llegar al año al 2013-2014 hay un aumento significativo en el consumo, probablemente por el aumento parcial de vehiculos durante esos años, tambien se muestran los datos del 2021 (lo que va por el momento) y parece que el consumo llegara a ser bastante de nuevo.
+
+### Consumo de gasolina super por mes
+
+```{r consumo mes vs super, echo=FALSE}
+df <- consumo[,c(3,4)]
+p<-ggplot(data=df, aes(x=Mes, y=GasolinaSuper)) +
+  geom_bar(stat="identity")
+p
+```
+
+En la gráfica anterior se muestra el consumo total que hubo en cada mes de los 21 años. Se puede notar que la cantidad de consumo no varía demasiado entre un mes y el otro, a pesar de que efectivamente en algunos(como en diciembre) parece haber más consumo, probablemente por el aumento sustancial de tránsito vehicular los cambios no son exorbitantes. Cabe mencionar que julio es el mes que menos consumo de gasolina super ha tenido durante estos años.
+
+### Consumo de gasolina regular por año
+
+```{r consumo anio vs regular, echo=FALSE}
+df <- consumo[,c(2,5)]
+p<-ggplot(data=df, aes(x=Anio, y=GasolinaRegular)) +
+  geom_bar(stat="identity")
+p
+```
+
+En esta gráfica se muestra el consumo por año de gasolina tipo super. Como se puede notar, es totalmente evidente que ha habido un crecimiento en la cantidad de vehiculos (y cantidad neta) que utilizan gasolina regular. A partir del 2013 (muy similar al caso del tipo de gasolina anterior) comenzó a aumentar el consumo de manera significativa, y permaneció haciendolo de esa manera hasta el año 2020, en donde a pesar que no es mucho, el consumo disminuyó, probablemente por algunas restricciones de movimiento durante la pandemia.
+
+### Consumo de gasolina regular por mes
+
+```{r consumo mes vs regular, echo=FALSE}
+df <- consumo[,c(3,5)]
+p<-ggplot(data=df, aes(x=Mes, y=GasolinaRegular)) +
+  geom_bar(stat="identity")
+p
+```
+
+Observando la gráfica del consumo en cada mes a lo largo de los 21 años se puede notar (como en la gráfica de gasolina tipo super) que no existe realmente un cambio tan significativo en el consumo durante estos meses. De nuevo el mes que tiene más es diciemibre y el que tiene menos es junio. Por lo que parece ser que esos meses son donde hay mas y menos tránsido respectivamente en cada año.
+
+### Consumo de gasolina Diesel por año 
+
+```{r consumo anio vs Diesel, echo=FALSE}
+df <- consumo[,c(2,7)]
+p<-ggplot(data=df, aes(x=Anio, y=Diesel)) +
+  geom_bar(stat="identity")
+p
+```
+
+En el caso del Diesel el aumento en el consumo, a pesar de que sí existe, no es tan significativo con en la gasolina regular y un poco en la gasolina super. El aumento parcial comenzó de nuevo en el año 2013, por lo que pare lógico asumir que durante esos años (mayormente 2013-2014) comenzó a aumentar bastante la cantidad de vehiculos de cualquier tipo, resultado entonces en un aumento de consumo en todos los combustibles. Es importante mencionar que a partir del 2018 se comenzó a utilizar una "alternativa" de Diesel menos contaminante al ambiente conocida como Combustible Diesel bajo en zufre (DieselLS), por lo que a partir de ese año ya no existen registros de Diesel.
+
+### Consumo de gasolina Diesel por mes
+
+```{r consumo mes vs Diesel, echo=FALSE}
+df <- consumo[,c(3,7)]
+p<-ggplot(data=df, aes(x=Mes, y=Diesel)) +
+  geom_bar(stat="identity")
+p
+```
+
+En la gráfica se puede observar el consumo de combustible Diesel en los meses durante los 21 años. De nuevo, a pesar de que no existen disminuciones abruptas, en el caso del Diesel, parece haber una descenso en el consumo en junio,julio,agosto y septiembre. Luego de estos meses, comienza a aumentar de nuevo. 
+
+## Importaciones
+
+Ahora se analizarán sus proporciones en el set de datos de importaciones, que en base al consumo (la demanda) se espera que sea algo similar.
+
+### Importación de gasolina super por año
+
+```{r importacion anio vs super, echo=FALSE}
+df <- importacion[,c(2,4)]
+p<-ggplot(data=df, aes(x=Anio, y=GasolinaSuper)) +
+  geom_bar(stat="identity")
+p
+```
+
+En esta gráfica se puede ver la tasa de importación de gasolina tipo super tiene un compartamiendo extremadamente similar a la grafica de super vs anio del set de datos de consumo, Se puede notar en este caso como al comienzo de los 2001 el aumento de la tasa de importanción aumenta lentamente llega a un intervalo relativamente estable y de nuevo en el 2013-2014 aumenta. 
+
+### Importación de gasolina super por mes
+
+```{r importacion mes vs super, echo=FALSE}
+df <- importacion[,c(3,4)]
+p<-ggplot(data=df, aes(x=Mes, y=GasolinaSuper)) +
+  geom_bar(stat="identity")
+p
+```
+
+En la gráfica de impotación de gasolina super por mes se observa el comportamiento similar que el la gráfica de consumo, la cual tiene un comportamiento muy similar a lo largo de los meses. Sin embargo la importación máxima y mínima (Diciembre y junio respectivamente), varía levemente en esta gráfica, en donde marzo tiene más tasa de importación y septiembre la mínima.
+
+### Importación de gasolina regular por año
+
+```{r importacion anio vs regular, echo=FALSE}
+df <- importacion[,c(2,5)]
+p<-ggplot(data=df, aes(x=Anio, y=GasolinaRegular)) +
+  geom_bar(stat="identity")
+p
+```
+
+En el gráfico de importación de combustible anual se puede notar un comportamiento de crecimiento apresurado desde el año 2013, mismo comportamiento que en la gráfica de consumo.
+
+### Importación de gasolina regular por mes
+```{r importacion mes vs regular, echo=FALSE}
+df <- importacion[,c(3,5)]
+p<-ggplot(data=df, aes(x=Mes, y=GasolinaRegular)) +
+  geom_bar(stat="identity")
+p
+```
+
+Como se puede evidenciar en el gráfico a pesar de que sigue existiendo una frecuencia de importación a corde con la gráfica de consumo respectiva. Sin embargo, de nuevo se muestra una diferencia entre el mínimo y el máximo, en donde en este caso hay dos mínimos, julio y septiembre, mientras que marzo sigue siendo el mes con más importación.
+
+
+### Importación de gasolina Diesel por año 
+
+```{r importacion anio vs Diesel, echo=FALSE}
+df <- importacion[,c(2,7)]
+p<-ggplot(data=df, aes(x=Anio, y=Diesel)) +
+  geom_bar(stat="identity")
+p
+```
+
+En esta gráfica se puede ver que hay un crecimiento en la importación de Diesel. Si se compara con su gráfica respectiva de consumo se puede ver un comportamiento muy similar, en donde a partirde (2012 en el otro caso) 2010 comienza un crecimiento notable en la importación hasta que en 2018 se implementa el uso del Diesel bajo en azufre
+
+### Importación de gasolina Diesel por mes
+```{r importacion mes vs Diesel, echo=FALSE}
+df <- importacion[,c(3,7)]
+p<-ggplot(data=df, aes(x=Mes, y=Diesel)) +
+  geom_bar(stat="identity")
+p
+```
+
+En su gráfica respectiva por mes, no hay ningún cambio significativo tampoco. En este caso Diciembre es el mes con más tasa de importación y septiembre el que tiene menos tasa.
+
+### Importación de gasolina Diesel baja en azufre por año 
+
+```{r importacion anio vs DieselLS, echo=FALSE}
+df <- importacion[,c(2,8)]
+p<-ggplot(data=df, aes(x=Anio, y=DieselLS)) +
+  geom_bar(stat="identity")
+p
+```
+
+En la tasa de Diesel baja en azufre se ve que al momento que desde que se ha comenzado a implementar, ha tenido una importación muy similar en los años, con su pico en 2019. si vemos el eje y,y lo comparamos con el gráfico de Diesel anterior, se puede evidenciar que el consumo es muy similar a aquellos años despues del 2015, en 2020, a pesar de la pandemio, si hubo una importación notable.
+
+### Importación de gasolina Diesel por mes
+
+```{r importacion mes vs DieselLS, echo=FALSE}
+df <- importacion[,c(3,8)]
+p<-ggplot(data=df, aes(x=Mes, y=DieselLS)) +
+  geom_bar(stat="identity")
+p
+```
+
+En la gráfica Se puede observar que los primeros meses, hasta mayo parece haber una importación mucho mayor a los meses siguientes. A partir de unio parece no haber muchos cambios en la cantidad de Diesel bajo en azufre exportado
+
+
+
+
+### entre importación y consumo de gasolina super
+```{r correlacion consumo e importacionn super, echo=FALSE}
+library("dplyr")
+set.seed(12345)
+
+#dim(consumo)
+consumoC <- sample_n(consumo, 245)
+#dim(consumoC)
+#dim(importacion)
+plot(x = consumoC$GasolinaSuper, y= importacion$GasolinaSuper, xlab= "Importación de Gasolina super", ylab= "Exportación de gasolina super", main = "Correlación de exportación e importación de gasolina super")
+abline(lm(consumoC$GasolinaSuper ~ importacion$GasolinaSuper), col = "red")
+```
+
+En el diagrama de correlación anterior se ejemplifica la exportación e importación de gasolina Super, para observar si lo visto en los diagramas de barras se puede comprobar de mejor manera. Muchas gráficas se parecían enormemente, a pesar de tener varios puntos atípicos, los puntos siguen la linea de tendencia (horizontalmente).
+
+## Pruebas de normalidad para cada tipo de gasolina en consumo
+
+### consumo Gasolina Super 
+
+```{r normalHistGasSuper Consumo, echo=FALSE}
+library (ggplot2)
+ggplot(data = consumo, aes(x = GasolinaSuper)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(consumo$GasolinaSuper),
+                            sd = sd(consumo$GasolinaSuper)))+
+  ggtitle("Histograma con curva normal teórica de los dato de gasolina tipo super") + 
+  theme_bw()
+```  
+
+En el gráfico anterior se evidencia que el consumo de gasolina no cumple una distribución nomal, además de tener un sesgo muy notable a la izquierda, parecen formar dos conjuntos de datos. 
+
+```{r normalBoxGasSuper consumo, echo=FALSE}
+boxplot(consumo$GasolinaSuper, main = "Caja y Bigotes de la gasolina tipo super", xlab = "Gasolina Super")
+```
+
+Observando el diagrama de caja y bigotes se peuede notar que hay una gran variabilidad entre la media y los demás datos, sin embargo, no existen tantos datos atípidos, ni por encima ni por debajo, por lo que en este diagrama si cumple normalidad.
+
+
+```{r normalQQgasSuper consumo, echo=FALSE}
+qqnorm(consumo$GasolinaSuper, col="blue")
+qqline(consumo$GasolinaSuper, col="red")
+```
+
+Por último para el consumo de gasolina super se puede ver en el gráfico QQ normal que a pesar de que existe un patrón desvariado en los datos, de ciertamenta (no muy evidente) si sigue la linea de tendencia y por lo tanto se podría considerar normal.
+
+
+### Gasolina Regular
+
+```{r normalHistGasRegular Consumo, echo=FALSE}
+library (ggplot2)
+ggplot(data = consumo, aes(x = GasolinaRegular)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(consumo$GasolinaRegular),
+                            sd = sd(consumo$GasolinaRegular)))+
+  ggtitle("Histograma con curva normal teórica de los dato de gasolina tipo regular") + 
+  theme_bw()
+```  
+
+El el histograma del consumo de la gasolina tipo regular se puede notar un sesgo de nuevo muy marcado a la izquierda, este es de hecho, más evidente que en la gráfica anterior, además, cabe mencionar que la distribución de datos es mucho más dispersa, por lo que no cumple con la distribución normal según la capana de Gauss.
+
+
+```{r normalBoxGasRegular consumo, echo=FALSE}
+boxplot(consumo$GasolinaRegular, main = "Caja y Bigotes de la gasolina tipo regular", xlab = "Gasolina regular")
+```
+
+Observando el diagrama de caja y bigotes, nuevamente se puede ver que hay varios datos que se alejan significativamente de la media, más por encima que por debajo, pero niguno de ellos es atípico, por lo que si muestra normalidad.
+
+
+```{r normalQQgasRegular consumo, echo=FALSE}
+qqnorm(consumo$GasolinaRegular, col="blue")
+qqline(consumo$GasolinaRegular, col="red")
+```
+
+Por último para el consumo de gasolina regular se puede observar de cierta manera que si cumple con la normalidad en el diagrama QQ normal, ya que a pesar de no seguirla perfectamente, si parece están cerca de la linea de tendencia.
+
+### Diesel
+
+```{r normalHistDiesel Consumo, echo=FALSE}
+library (ggplot2)
+ggplot(data = consumo, aes(x = Diesel)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(consumo$Diesel),
+                            sd = sd(consumo$Diesel)))+
+  ggtitle("Histograma con curva normal teórica de los dato de gasolina tipo super") + 
+  theme_bw()
+```  
+
+Para el Diesel en el set de datos de consumo, se puede notar que, al menos en el histograma no cumple con la normalidad. Se puede ver un sesgo a la izquierda y una gran cola a la derecha.
+
+```{r normalBoxGasDiesel consumo, echo=FALSE}
+boxplot(consumo$Diesel, main = "Caja y Bigotes de la gasolina tipo super", xlab = "Gasolina Super")
+```
+
+En el diagrama de caja y bigotes para el diesel se pueden notar más datos centrados en la media. Adicionalmente se ven muchos más puntos atípicos en este diagrama que en los anteriores, dificilmente se podría decir que cumple con normalidad.
+
+
+```{r normalQQgasDiesel consumo, echo=FALSE}
+qqnorm(consumo$Diesel, col="blue")
+qqline(consumo$Diesel, col="red")
+```
+
+En el diagrama QQ normal para el consumo de Diesel es totalmente evidente que bajo esta prueba, si cumple normalidad, ya que la distribución de los datos parece seguir de manera muy certera la linea de tendencia.
+
+## Pruebas de normalidad para cada tipo de gasolina en importación 
+
+### Super
+
+```{r normalHistGasSuper Importacion, echo=FALSE}
+library (ggplot2)
+ggplot(data = importacion, aes(x = GasolinaSuper)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(importacion$GasolinaSuper),
+                            sd = sd(importacion$GasolinaSuper)))+
+  ggtitle("Histograma con curva normal teórica de los dato de gasolina tipo super") + 
+  theme_bw()
+```  
+
+Comenzando con el histograma para el combustible importado, gasolina super. Es posible ver que, aunque no parece seguir una forma perfecta de campana de Gauss si tiene varios rasgos que parecen cumplir con normalidad bajo este criterio. Cabe mencionar que si hay un punto atípico que parece jalar la media(1250000).
+
+```{r normalBoxGasSuper Importacion, echo=FALSE}
+boxplot(importacion$GasolinaSuper, main = "Caja y Bigotes de la gasolina tipo super", xlab = "Gasolina Super")
+```
+
+En el diagrama de caja y bigotes de la importación de la gasolina tipo super se puede observar que casi todos los datos parecen estar concentrados en un intervalo aceptable. Solo se ve un punto atípico por lo que si parece seguir una distribución normal.
+
+
+```{r normalQQgasSuper Importacion, echo=FALSE}
+qqnorm(importacion$GasolinaSuper, col="blue")
+qqline(importacion$GasolinaSuper, col="red")
+```
+
+En e diagrama QQ normal es evidente que si sigue una distribución normal casi perfecta. esta variable cumple con las tres pruebas de normalidad.
+
+### Regular
+
+```{r normalHistGasRegular Importacion, echo=FALSE}
+library (ggplot2)
+ggplot(data = importacion, aes(x = GasolinaRegular)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(importacion$GasolinaRegular),
+                            sd = sd(importacion$GasolinaRegular)))+
+  ggtitle("Histograma con curva normal teórica de los dato de gasolina tipo regular") + 
+  theme_bw()
+```  
+
+En este histograma se puede ver un sesgo a la izquierda y una gran distribución dispersa de datos referentes a la gasolina regular, por lo que no parece seguir una distribución normal.
+
+```{r normalBoxGasRegular Importacion, echo=FALSE}
+boxplot(importacion$GasolinaRegular, main = "Caja y Bigotes de la gasolina tipo regular", xlab = "Gasolina Super")
+```
+
+Observando el gráfico de caja y bigotes se puede notar que hay varios datos que se encuentran sobre la media, sin mencionar del punto atípico, a pesar de eso, se puede decir que bajo este criterio si cumple con normalidad.
+
+
+```{r normalQQgasRegular Importacion, echo=FALSE}
+qqnorm(importacion$GasolinaRegular, col="blue")
+qqline(importacion$GasolinaRegular, col="red")
+```
+
+En el gráfico QQ normal de este tipo de gasolina, se puede notar que sigue muy bien la linea de tendencia, por lo que si cumple normalidad.
+
+### Diesel
+
+```{r normalHistGasDiesel Importacion, echo=FALSE}
+library (ggplot2)
+ggplot(data = importacion, aes(x = Diesel)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(importacion$Diesel),
+                            sd = sd(importacion$Diesel)))+
+  ggtitle("Histograma con curva normal teórica de los dato de Diesel") + 
+  theme_bw()
+```  
+
+Para los datos de importación de Diesel se puede notar que en el histograma, a pesar de no seguir una forma perfecta de la campana de Gauss (que es teórica) si parece cumplir con normalidad y no presenta sesgos significativos. 
+
+```{r normalBoxGasDiesel Importacion, echo=FALSE}
+boxplot(importacion$Diesel, main = "Caja y Bigotes de la gasolina tipo Diesel", xlab = "Diesel")
+```
+
+Observando el diagrama de caja y bigotes se puede ver que muchos datos si cumplen con el supuesto de normalidad, sin contar los 4 puntos sobre el cuartil, si parece cumplir normalidad.
+
+
+```{r normalQQgasDiesel Importacion, echo=FALSE}
+qqnorm(importacion$Diesel, col="blue")
+qqline(importacion$Diesel, col="red")
+```
+
+En este gráfico se puede ver que los datos de importacion de Diesel si siguen una distribución normal ya que estan acorde de la linea de tendencia.
+
+### DieselLS
+
+```{r normalHistGasDieselLS Importacion, echo=FALSE}
+library (ggplot2)
+ggplot(data = importacion, aes(x = Diesel)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(importacion$DieselLS),
+                            sd = sd(importacion$DieselLS)))+
+  ggtitle("Histograma con curva normal teórica de los dato de Diesel bajo en azufre") + 
+  theme_bw()
+```  
+
+Por último, debido a que, como dicho anteriormente, fue hasta el 2017 que se utilizó Diesel "normal" y se comenzó a utilizar el 2018 Diesel bajo en azufre. En su histograma se puede ver que efectivamente parece seguir una distribución normal, además de no presentar sesgos significativos.
+
+```{r normalBoxGasDieselLS Importacion, echo=FALSE}
+boxplot(importacion$DieselLS, main = "Caja y Bigotes de la gasolina tipo Diesel", xlab = "Diesel bajo en azufre")
+```
+
+En el diagrama de caja y bigotes se puede observar que no hay ningún punto atípico, además de que los cuartiles si parecen seguir normalidad.
+
+
+```{r normalQQgasDieselLS Importacion, echo=FALSE}
+qqnorm(importacion$DieselLS, col="blue")
+qqline(importacion$DieselLS, col="red")
+```
+
+Por último, en el diagrama QQ normal se puede observar que los datos si siguen la linea de tendencia (son pocos debido a que solo han sido almacenados 4 años) y por lo tanto si cumplen con normalidad.
+
+
+### -------------------------------------
+
+# Diesel
+
+```{r limpiar, echo=FALSE}
+
+datosConsumo <-consumo[,c(2,3,7,8)]
+datosConsumo$Date <- with(datosConsumo, sprintf("%d-%02d", Anio, Mes))
+datosConsumo <- datosConsumo[,c(3,4,5)]
+datosC <- within(datosConsumo, {
+  Diesel = ifelse(is.na(Diesel),DieselLS,Diesel)
+})
+datosC <- datosC[,c(3,1)]
+datosC
+
+#Convertir a ts
+datosC.ts <- ts(datosC$Diesel,start = c(2001,1),frequency=12)
+#Separa entrenamiento y prueba
+train <- head(datosC.ts, round(length(datosC.ts) *0.7))
+h<- length(datosC.ts)-length(train)
+test <- tail(datosC.ts,h)
+
+```
+
+```{r}
+start(datosC.ts)
+end(datosC.ts)
+start(train)
+end(train)
+start(h)
+end(h)
+frequency(datosC.ts)
+```
+
+```{r}
+plot(datosC.ts)
+abline(reg=lm(datosC.ts~time(datosC.ts)), col=c("red"))
+```
+
+
+La serie de tiempo comienza en enero de 2001, termina en mayo de 2021 y tiene una frecuencia de 12, ya que los datos se tienen según los 12 meses de cada año.
+A simple vista puede observarse que, a pesar de tener altos y bajos, el consumo de combustible ha ido aumentando siguiendo una tendencia a lo largo de los años, teniendo picos tanto altos como bajos, también puede observarse que aproximadamente en 2009 y 2021, hubo caídas bastante significantes y más fuertes que las bajas en los picos entre otros años.
+
+Al no mantenerse constante a lo largo del tiempo, se puede decir que esta es una serie no estacionaria en cuanto a la media ya que tiene una tendencia creciente y tampoco es estacionaria respecto a la varianza, ya que hay varios puntos en los que la varianza puede tanto disminuir como aumentar, no se mantiene constante.
+
+Ahora, al descomponer la serie de tiempo, obtenemos lo siguiente: 
+
+```{r}
+dec.cdec <- decompose(datosC.ts)
+plot(dec.cdec)
+plot(dec.cdec$seasonal)
+```
+
+En los componentes podemos observar cómo es que, de hecho, no se tiene tendencia en la media, ya que se tiene una tendencia creciente. En cuanto a la varianza, puede observarse que esta no se mantiene constante, hay varianzas más pequeñas y otras más grandes, sin embargo, esto se podrá comprobar con coeficientes de correlación. En cuanto a estacionalidad, parece que sí tiene ya que el mismo patrón se repite constantemente. Podemos concluir finalmente que nuestra serie no es estacionaria, por lo que es necesario transformarla para poder predecir con ella.
+
+## Estimar los parámetros del modelo
+
+Debido a que no es estacionaria en varianza, primero es necesario aplicar transformación logarítmica con la serie de entrenamiento:
+
+```{r}
+logConsumoTrain <- log(train)
+lambda <- BoxCox.lambda(train)
+boxcoxTrain <-BoxCox(train, lambda)
+plot(decompose(logConsumoTrain))
+plot(logConsumoTrain)
+
+```
+
+Con esto se ha logrado que la varianza sea más constante, ahora es necesario verificar la estacionariedad en media. Es necesario verificar la existencia de raices unitarias, si se cuenta con ellas, esto quiere decir que no es estacionaria en media y hay que aplicar procesos de diferenciación.
+
+```{r}
+adfTest(train)
+unitrootTest(train)
+```
+
+En ambas pruebas puede observarse un valor mayor a 0.05 por lo que no es posible rechazar la hipótesis nula planteada, la cual indica que hay una ausencia de raices unitarias, lo cual significa que no es estacionaria en media. Aplicaremos una diferenciación para poder rechazar el hecho de que existan reices unitarias y que así nuestra serie de tiempo sea estacionaria en media.
+
+```{r}
+trainDiff <-diff(logConsumoTrain)
+adfTest(diff(train))
+```
+
+En esta prueba el valor p es menor que 0.05 por lo que ahora sí es posible rechazar la hipótesis nula y luego de una diferenciación, la serie de tiempo ya es estacionaria en media, esto quiere decir que d=1. Ahora para identificar los valores tanto de p como de q podemos utilizar los gráficos de autocorrelación y autocorrelación parcial.
+
+```{r}
+acf(logConsumoTrain,50)
+```
+
+Este gráfico se anula después del primer retardo, por lo que se puede decir que q = 1.
+
+```{r}
+pacf(logConsumoTrain,50)
+```
+
+Se anula después de un retardo por lo que p = 1. Finalmente, podemos elaborar un modelo con los parámetros d, p y q todos iguales a 1, es decir ARIMA(1,1,1)
+
+A continuación observaremos estacionalidad:
+
+```{r}
+decTrain <- decompose(train)
+plot(decTrain$seasonal)
+```
+
+Sí se cuenta con estacinalidad como puede observarse y para poder comprender este comportamiento se harán las funciones de autocorrelación y autocorrelación parcial con 36 resagos para determinar en qué momentos son los picos estacinales.
+
+```{r}
+acf(diff(logConsumoTrain),36)
+pacf(diff(logConsumoTrain),36)
+```
+
+En la función de autocorrelación tenemos picos estacionales en 1, 2 y 3, en el caso de la autocorrelación parcial tenemos un pico significativo en 1.
+Con esto podemos inferir que los parámetros del componente estacional son P, D = 1 y Q = 0.
+
+```{r}
+fitArima <- arima(logConsumoTrain,order=c(1,1,1),seasonal=c(1,1,0))
+```
+
+Es posible que R genere un modelo automático teniendo en cuenta los parámetros de la serie:
+
+```{r}
+fitAutoArima <- auto.arima(train)
+```
+
+## Significacion de los coeficientes
+
+Para poder verificar que tan significativos son los coeficientes de los modelos se puede hacer la siguiente prueba:
+```{r}
+coeftest(fitArima)
+```
+
+Dos de los coeficientes son significativos.
+
+```{r}
+coeftest(fitAutoArima)
+```
+
+con el modelo generado automáticamente, dos coeficientes son significativos.
+
+## Análisis de residuales
+
+Es necesario que los residuos no estén correlacionados entre sí y que se distributan normalmente, analizando esto con el modelo fitArima:
+
+```{r}
+qqnorm(fitArima$residuals)
+qqline(fitArima$residuals)
+checkresiduals(fitArima)
+```
+
+Al observar los gráficos obtenidos, los datos aparentan tener una distribución normal respecto a la forma de campana, también puede decirse que no hay correlaciones significativas y según el test de Ljung-Box, tenemos un valor p menor a 0.05, por lo que los datos no se distribuyen de forma independiente, esto quiere decir que se rechaza la hipótesis nula, por lo que no es posible predecir con el modelo generado.
+
+Ahora, utilizando el modelo generado automáticamente por R:
+
+```{r}
+qqnorm(fitAutoArima$residuals)
+qqline(fitAutoArima$residuals)
+checkresiduals(fitAutoArima)
+```
+
+En este caso también se cuenta con una distribución normal en cuanto a la forma de campana y no hay correlaciones significativas. En este caso el valor p es menor que 0.05 de igual forma por lo que también se rechaza la hipótesis nula y este modelo tampoco es aceptable para predecir.
+
+Debido a que ninguno de los dos modelos es aceptable para predecir, no se han podido utilizar.
+
+## Prophet
+
+Se ha intentado instalar prophet, sin embargo, se cuenta con el siguiente error: 
+Error: package or namespace load failed for ‘prophet’ in .doLoadActions(where, attach):
+ error in load action .__A__.1 for package prophet: Rcpp::loadModule(module = "stan_fit4prophet_mod", what = TRUE, : Unable to load module "stan_fit4prophet_mod": el paquete 'Rcpp_precious_remove' no ofrece la función 'Rcpp'
+ 
+por lo que la predicción por este medio tampoco es posible
+ 
+## Importación
+
+```{r}
+datosImportacion <- importacion[,c(2,3,7,8)]
+
+datosImportacion$Date <- with(datosImportacion, sprintf("%d-%02d", Anio, Mes))
+datosImportacion <- datosImportacion[,c(3,4,5)]
+
+datosI <- within(datosImportacion, {
+  Diesel = ifelse(is.na(Diesel),DieselLS,Diesel)
+})
+datosI <- datosI[,c(3,1)]
+
+datosI.ts <- ts(datosI$Diesel,start = c(2001,1),frequency=12)
+
+train <- head(datosI.ts, round(length(datosI.ts) *0.7))
+h<- length(datosI.ts)-length(train)
+test <- tail(datosI.ts,h)
+
+start(datosI.ts)
+end(datosI.ts)
+start(train)
+end(train)
+start(h)
+end(h)
+frequency(datosI.ts)
+
+plot(datosI.ts)
+abline(reg=lm(datosC.ts~time(datosC.ts)), col=c("red"))
+
+```
+
+La serie de tiempo comienza en enero de 2001, termina en mayo de 2021 y tiene una frecuencia de 12, ya que los datos se tienen según los 12 meses de cada año.
+A simple vista puede observarse que, a pesar de tener altos y bajos, la importación de combustible ha ido aumentando siguiendo una tendencia a lo largo de los años, teniendo picos tanto altos como bajos.
+
+Al no mantenerse constante a lo largo del tiempo, se puede decir que esta es una serie no estacionaria en cuanto a la media ya que tiene una tendencia creciente y tampoco es estacionaria respecto a la varianza, ya que hay varios puntos en los que la varianza puede tanto disminuir como aumentar, no se mantiene constante.
+
+Ahora, al descomponer la serie de tiempo, obtenemos lo siguiente: 
+
+
+```{r}
+dec.idec <- decompose(datosI.ts)
+plot(dec.idec)
+plot(dec.idec$seasonal)
+```
+
+En los componentes podemos observar cómo es que, de hecho, no se tiene tendencia en la media, ya que se tiene una tendencia creciente. En cuanto a la varianza, puede observarse que esta no se mantiene constante, hay varianzas más pequeñas y otras más grandes, sin embargo, esto se podrá comprobar con coeficientes de correlación. En cuanto a estacionalidad, parece que sí tiene ya que el mismo patrón se repite constantemente. Podemos concluir finalmente que nuestra serie no es estacionaria, por lo que es necesario transformarla para poder predecir con ella.
+
+## Estimar los parámetros del modelo
+
+Debido a que no es estacionaria en varianza, primero es necesario aplicar transformación logarítmica con la serie de entrenamiento:
+
+```{r}
+logiTrain <- log(train)
+lambda <- BoxCox.lambda(train)
+boxcoxTrain <-BoxCox(train, lambda)
+plot(decompose(logiTrain))
+plot(logiTrain)
+```
+
+Con esto se ha logrado que la varianza sea más constante, ahora es necesario verificar la estacionariedad en media. Es necesario verificar la existencia de raices unitarias, si se cuenta con ellas, esto quiere decir que no es estacionaria en media y hay que aplicar procesos de diferenciación.
+
+```{r}
+adfTest(train)
+unitrootTest(train)
+```
+
+En ambas pruebas puede observarse un valor mayor a 0.05 por lo que no es posible rechazar la hipótesis nula planteada, la cual indica que hay una ausencia de raices unitarias, lo cual significa que no es estacionaria en media. Aplicaremos una diferenciación para poder rechazar el hecho de que existan reices unitarias y que así nuestra serie de tiempo sea estacionaria en media.
+
+```{r}
+trainDiff <-diff(logiTrain)
+adfTest(diff(train))
+```
+
+En esta prueba el valor p es menor que 0.05 por lo que ahora sí es posible rechazar la hipótesis nula y luego de una diferenciación, la serie de tiempo ya es estacionaria en media, esto quiere decir que d=1. Ahora para identificar los valores tanto de p como de q podemos utilizar los gráficos de autocorrelación y autocorrelación parcial.
+
+```{r}
+acf(logiTrain,50)
+```
+
+Este gráfico se anula después del primer retardo, aunque casi no es perceptible, por lo que se puede decir que q = 1.
+
+```{r}
+pacf(logiTrain,50)
+```
+
+Se anula después de tres retardos por lo que p = 3. Finalmente, podemos elaborar un modelo con los parámetros d = 1, p = 3 y q= 1, es decir ARIMA(3,1,1)
+
+A continuación observaremos estacionalidad:
+
+```{r}
+decTrain <- decompose(train)
+plot(decTrain$seasonal)
+```
+
+Sí se cuenta con estacinalidad como puede observarse y para poder comprender este comportamiento se harán las funciones de autocorrelación y autocorrelación parcial con 36 resagos para determinar en qué momentos son los picos estacinales.
+
+```{r}
+acf(diff(logiTrain),36)
+pacf(diff(logiTrain),36)
+```
+
+EN la función de autocorrelación no tenemos picos estacionales, en el caso de la autocorrelación parcial tampoco los tenemos.
+Con esto podemos inferir que los parámetros del componente estacional son P, D y Q = 0.
+
+```{r}
+fitArima <- arima(logiTrain,order=c(3,1,1),seasonal=c(0,0,0))
+```
+
+Es posible que R genere un modelo automático teniendo en cuenta los parámetros de la serie:
+
+```{r}
+fitAutoArima <- auto.arima(train)
+```
+
+## Significacion de los coeficientes
+
+Para poder verificar que tan significativos son los coeficientes de los modelos se puede hacer la siguiente prueba:
+```{r}
+coeftest(fitArima)
+```
+
+En este caso tenemos un coeficiente significativo.
+
+```{r}
+coeftest(fitAutoArima)
+```
+
+Con el modelo generado automáticamente ningún coeficiente es significativo.
+
+## Análisis de residuales
+
+Es necesario que los residuos no estén correlacionados entre sí y que se distributan normalmente, analizando esto con el modelo fitArima:
+
+```{r}
+qqnorm(fitArima$residuals)
+qqline(fitArima$residuals)
+checkresiduals(fitArima)
+```
+
+Al observar los gráficos obtenidos, los datos aparentan tener una distribución normal respecto a la forma de campana, también puede decirse que no hay correlaciones significativas y según el test de Ljung-Box, tenemos un valor p mayor a 0.05, por lo que los datos se distribuyen de forma independiente, esto quiere decir que no se rechaza la hipótesis nula, esto significa que el modelo generado es aceptable para predecir.
+
+Ahora, utilizando el modelo generado automáticamente por R:
+
+```{r}
+qqnorm(fitAutoArima$residuals)
+qqline(fitAutoArima$residuals)
+checkresiduals(fitAutoArima)
+```
+
+En este caso también se cuenta con una distribución normal en cuanto a la forma de campana y no hay correlaciones significativas. En este caso el valor p es mayor a 0.05, por lo que los datos se distribuyen de forma independiente, esto quiere decir que no se rechaza la hipótesis nula, esto significa que el modelo generado es aceptable para predecir.
+
+## Contrastes respecto a modelos alternativos
+
+```{r}
+AIC(fitArima,fitAutoArima)
+BIC(fitArima, fitAutoArima)
+```
+
+Según la información obtenida tanto en AIC y BIC, en ambos casos fitArima tiene un menor valor, por lo que este podría ser mejor para predecir.
+
+## Predicción
+
+Se harán predicciones por medio de forecast usando la misma cantidad de meses que hay en el conjunto de prueba y comparándolo con los valores reales de este mismo conjunto.
+
+```{r}
+#fitArima %>%
+#  forecast(h) %>%
+#  autoplot() + autolayer(log(test))
+```
+
+Se muestra el siguiente error:
+Error: Invalid input: date_trans works with objects of class Date only
+
+Por lo que la predicción no es posible
+
+## Prophet
+
+Se ha intentado instalar prophet, sin embargo, se cuenta con el siguiente error: 
+Error: package or namespace load failed for ‘prophet’ in .doLoadActions(where, attach):
+ error in load action .__A__.1 for package prophet: Rcpp::loadModule(module = "stan_fit4prophet_mod", what = TRUE, : Unable to load module "stan_fit4prophet_mod": el paquete 'Rcpp_precious_remove' no ofrece la función 'Rcpp'
+ 
+Por lo que la predicción por este medio tampoco es posible
+
+# Regular
+```{r limpieza, echo=FALSE}
+
+rm(datosImportacion)
+rm(datosConsumo
+   )
+regularC <- consumo
+regularI <- importacion
+regC.ts<-ts(regularC$GasolinaRegular,start = c(2001,1),frequency = 12)#Regular consumo
+```
+
+inciso 2b
+
+```{r}
+plot(regC.ts)
+```
+inciso 2a para consumo gasolina regular
+```{r}
+start(regC.ts)#inicio
+
+end(regC.ts)#fin
+
+frequency(regC.ts) #frequencia
+```
+
+Determine si es necesario transformar la serie: se cree que si es necesario dado la no estacionariedad 
+de la data. 
+
+```{r}
+logRegularc<- log(regC.ts)
+plot(logRegularc)
+```
+
+como se puede apreciar no es estacionaria:
+
+```{r}
+acf(regC.ts)
+```
+
+Test de Dickey-fuller para probar si es estacionaria
+
+```{r}
+adf.test(regC.ts) #test ADF
+```
+
+Se usa la funcion auto.arima() para que nos devuelva los parametros del modelo arima.
+
+```{r}
+auto.arima(regC.ts)#obtecion del modelo
+```
+
+Creacion de modelos arima inciso 2f y 2g:
+
+```{r}
+fit <- arima(log(regC.ts), c(2, 1, 1),seasonal = list(order = c(2, 0, 0), period = 12)) #modleo arima con valores dados por la funcion auto.arima()
+pred <- predict(fit, n.ahead = 10*12)
+ts.plot(regC.ts,2.718^pred$pred, log = "y", lty = c(1,3))
+
+fit2 <- arima(log(regC.ts), c(2, 1, 1),seasonal = list(order = c(0, 1, 0), period = 12))
+
+forecastAP <- forecast(fit, level = c(95), h = 36)
+forecastAD <- forecast(fit2, level = c(95), h = 5)
+```
+
+Analisis residuales: 
+
+```{r}
+checkresiduals(fit)
+checkresiduals(fit2)
+
+coeftest(fit)
+coeftest(fit2)
+
+
+checkresiduals(fit)
+
+autoplot(forecastAP)
+
+```
+
+Se puede apreciar que solo el primero modelo es viable para realizar predicciones dado su nivel de significancia de 0.09. 
+
+#importacion
+
+```{r}
+regI.ts<-ts(regularI$GasolinaRegular,start = c(2001,1),frequency = 12)
+#grafico
+plot(regI.ts)#La grafica demuestra que no hay estacionariedad
+
+
+#inicio
+start(regI.ts)
+#fin
+end(regC.ts)
+#frecuencia
+frequency(regI.ts)
+```
+
+transformacion logaritmica
+
+```{r}
+logRegulari<- log(regI.ts)
+plot(logRegulari)
+```
+
+autorrelacion:
+
+```{r}
+acf(logRegulari) #autocorrelacion
+acf(diff(logRegularc),12)#autocorrelacion corregida
+pacf(diff(logRegularc))
+```
+
+este a la vez tampoco es estacionario. 
+
+Test de Dickey-fuller:
+
+```{r}
+adf.test(regI.ts) #test ADF
+```
+obteniendo parametros del modelo arima con la función auto:
+```{r}
+auto.arima(regI.ts)#obtecion del modelo
+```
+
+creacion de modelos arima para serie de importacion
+
+```{r}
+fiti <- arima(log(regI.ts), c(1, 1, 2),seasonal = list(order = c(2, 0, 0), period = 12)) #modleo arima con valores dados por la funcion auto.arima()
+pred <- predict(fit, n.ahead = 10*12)
+ts.plot(regI.ts,2.718^pred$pred, log = "y", lty = c(1,3))
+
+fit2i <- arima(log(regI.ts),seasonal = list(order = c(0, 1, 0), period = 12))
+```
+
+analisis de residuales para la serie de importacion
+
+```{r}
+checkresiduals(fiti)
+checkresiduals(fit2i)
+
+coeftest(fiti)
+
+
+checkresiduals(fiti)
+```
+
+Nuevamente solo el modelo que se implementó con los modelos del auto arima devolvió un nivel de significancia mayor a 0.05 por loi que es el unico viable para predicción. 
+
+predicción a 3 años
+
+```{r}
+forecastAPi2 <- forecast(fit, level = c(95), h = 36)
+forecastAD <- forecast(fit2, level = c(95), h = 36)# a 3 años
+autoplot(forecastAPi2)
+```
+
+predicción de lo que queda del 2021
+
+```{r}
+forecastAPi <- forecast(fit, level = c(95), h = 6)# a 6 meses 
+forecastADi <- forecast(fit2, level = c(95), h = 6)
+
+
+autoplot(forecastAPi)
+```
+
+# Super 
+
+```{r Lectura de los dataframes, echo=FALSE}
+consumo<-cbind(consumo['Anio'],
+      consumo['Mes'],
+      consumo['GasolinaSuper'],
+      consumo['GasolinaSuper'],
+      consumo['GasolinaRegular'],
+      consumo['Diesel'],
+      consumo['DieselLS'])
+
+consumo$Diesel[is.na(consumo$Diesel)]<-consumo$DieselLS[is.na(consumo$Diesel)]
+
+
+#Lectura de DataFrame de importaciÃ³n
+imp<-cbind(importacion['Anio'],
+               importacion['Mes'],
+               importacion['GasolinaSuper'],
+               importacion['GasolinaSuper'],
+               importacion['GasolinaRegular'],
+               importacion['Diesel'],
+               importacion['DieselLS'])
+
+imp$Diesel[is.na(imp$Diesel)]<-imp$DieselLS[is.na(imp$Diesel)]
+ 
+```
+
+
+### Agregar columna con datos de fecha
+
+```{r}
+consumo$Date<-as.yearmon(paste(consumo$Anio,consumo$Mes),"%Y %m")
+imp$Date<-as.yearmon(paste(imp$Anio,imp$Mes),"%Y %m")
+```
+
+
+### Convertir a TS
+
+```{r}
+consumoTS<-ts(consumo$GasolinaSuper,start=c(2000,01),end=c(2021,05),12)
+impTS<-ts(imp$GasolinaSuper,start=c(2000,01),end=c(2021,05),12)
+```
+
+### Inicio
+
+```{r}
+start(consumoTS)
+start(impTS)
+```
+
+### Final de los datos
+
+```{r}
+end(consumoTS)
+end(impTS)
+```
+
+### Frecuencia 
+
+```{r}
+frequency(consumoTS)
+frequency(impTS)
+```
+
+### Gráficos exploratorios 
+
+```{r}
+plot(consumoTS)
+abline(reg=lm(consumoTS~time(consumoTS)), col=c("red"))
+```
+
+```{r}
+plot(impTS)
+abline(reg=lm(impTS~time(impTS)), col=c("red"))
+```
+
+### Gráficos de descomposición 
+
+```{r}
+descConsumo<-decompose(consumoTS)
+descImp<-decompose(impTS)
+
+plot(descConsumo)
+
+plot(descImp)
+```
+
+### Train test split 
+
+```{r}
+trainConsumo<-head(consumoTS,round(length(consumoTS)*0.7))
+trainImp<-head(impTS,round(length(impTS)*0.7))
+
+
+testConsumo<-tail(consumoTS,round(length(consumoTS)*0.3))
+testImp<-tail(impTS,round(length(impTS)*0.3))
+```
+
+### Diferencia entre conjuntos
+
+```{r}
+h_consumo<-length(trainConsumo)-length(testConsumo)
+h_imp<-length(trainImp)-length(testImp)
+```
+
+### Transformación logarítmica por no poseer estacionalidad en media
+```{r}
+logconsumo<-log(trainConsumo)
+logImp<-log(trainImp)
+
+plot(decompose(logconsumo))
+plot(decompose(logImp))
+```
+
+### Dickey Fuller test
+
+```{r}
+adfTest(trainConsumo)
+adfTest(trainImp)
+```
+
+### Prueba de raices unitarias
+
+```{r}
+unitrootTest(trainConsumo)
+unitrootTest(trainImp)
+```
+
+### Parámetros p y q
+
+```{r}
+acf(logconsumo,100,na.action = na.pass)
+acf(logImp,100,na.action=na.pass)
+
+pacf(logconsumo,100,na.action = na.pass)
+pacf(logImp,100,na.action=na.pass)
+
+Acf(diff(logconsumo), 36)
+Pacf(diff(logconsumo), 36)
+
+Acf(diff(logImp), 36)
+Pacf(diff(logImp), 36)
+```
+
+### Arima
+
+```{r}
+Arima_Consumo<-arima(log(trainConsumo),order=c(2,1,3),seasonal = c(1,1,0))
+Arima_Consumo2<-arima(log(trainConsumo),order=c(2,1,3),seasonal = c(0,1,1))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
