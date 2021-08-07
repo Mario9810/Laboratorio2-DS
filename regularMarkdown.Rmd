@@ -1,0 +1,40 @@
+---
+title: "regular"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## R Markdown
+```regularC <- read.csv("seriec.csv")
+regularI <- read.csv("seriei.csv")
+```
+
+
+```
+regC.ts<-ts(regularC$GasolinaRegular,start = c(2001,1),frequency = 12)#Regular consumo
+
+plot(regC.ts)#La grafica demuestra que no hay estacionariedad 
+
+
+start(regC.ts)#inicio
+
+end(regC.ts)#fin
+
+frequency(regC.ts) #frequencia
+```
+Determine si es necesario transformar la serie: se cree que si es necesario dado la no estacionariedad 
+de la data. 
+
+```logRegularc<- log(regC.ts)
+plot(logRegularc)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
