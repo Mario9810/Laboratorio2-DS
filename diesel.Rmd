@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-knitr::opts_knit$set(root.dir="C:/Users/Ingebor Rubio/Desktop/Trabajos/Sexto Semestre/Data science/lab2/")
+knitr::opts_knit$set(root.dir="C:/Users/Ingebor Rubio/Desktop/Trabajos/Sexto Semestre/Data science/lab22do/Laboratorio2-DS/")
 
 ```
 
@@ -104,7 +104,7 @@ trainDiff <-diff(logConsumoTrain)
 adfTest(diff(train))
 ```
 
-En ambas pruebas el valor p es menor que 0.05 por lo que ahora sí es posible rechazar la hipótesis nula y luego de una diferenciación, la serie de tiempo ya es estacionaria en media, esto quiere decir que d=1. Ahora para identificar los valores tanto de p como de q podemos utilizar los gráficos de autocorrelación y autocorrelación parcial.
+En esta prueba el valor p es menor que 0.05 por lo que ahora sí es posible rechazar la hipótesis nula y luego de una diferenciación, la serie de tiempo ya es estacionaria en media, esto quiere decir que d=1. Ahora para identificar los valores tanto de p como de q podemos utilizar los gráficos de autocorrelación y autocorrelación parcial.
 
 ```{r}
 acf(logConsumoTrain,50)
@@ -132,8 +132,8 @@ acf(diff(logConsumoTrain),36)
 pacf(diff(logConsumoTrain),36)
 ```
 
-EN la función de autocorrelación tenemos picos estacionales en 1, 2 y 3, en el caso de la autocorrelación parcial tenemos un pico significativo en 1.
-Con esto podemos inferir que los parámetros del componente estacional son P, Q = 1 y Q = 0.
+En la función de autocorrelación tenemos picos estacionales en 1, 2 y 3, en el caso de la autocorrelación parcial tenemos un pico significativo en 1.
+Con esto podemos inferir que los parámetros del componente estacional son P, D = 1 y Q = 0.
 
 ```{r}
 fitArima <- arima(logConsumoTrain,order=c(1,1,1),seasonal=c(1,1,0))
@@ -267,24 +267,112 @@ trainDiff <-diff(logiTrain)
 adfTest(diff(train))
 ```
 
-El valor aún no es menor a 0.05 por lo que se necesita de otra diferenciación.
+En esta prueba el valor p es menor que 0.05 por lo que ahora sí es posible rechazar la hipótesis nula y luego de una diferenciación, la serie de tiempo ya es estacionaria en media, esto quiere decir que d=1. Ahora para identificar los valores tanto de p como de q podemos utilizar los gráficos de autocorrelación y autocorrelación parcial.
 
 ```{r}
-trainDiff2 <-diff(trainDiff)
-dif1<-(diff(train))
-adfTest(diff(dif1))
+acf(logiTrain,50)
 ```
 
+Este gráfico se anula después del primer retardo, aunque casi no es perceptible, por lo que se puede decir que q = 1.
 
 ```{r}
-
+pacf(logiTrain,50)
 ```
 
+Se anula después de tres retardos por lo que p = 3. Finalmente, podemos elaborar un modelo con los parámetros d = 1, p = 3 y q= 1, es decir ARIMA(3,1,1)
+
+A continuación observaremos estacionalidad:
 
 ```{r}
-
+decTrain <- decompose(train)
+plot(decTrain$seasonal)
 ```
 
+Sí se cuenta con estacinalidad como puede observarse y para poder comprender este comportamiento se harán las funciones de autocorrelación y autocorrelación parcial con 36 resagos para determinar en qué momentos son los picos estacinales.
 
+```{r}
+acf(diff(logiTrain),36)
+pacf(diff(logiTrain),36)
+```
 
+EN la función de autocorrelación no tenemos picos estacionales, en el caso de la autocorrelación parcial tampoco los tenemos.
+Con esto podemos inferir que los parámetros del componente estacional son P, D y Q = 0.
 
+```{r}
+fitArima <- arima(logiTrain,order=c(3,1,1),seasonal=c(0,0,0))
+```
+
+Es posible que R genere un modelo automático teniendo en cuenta los parámetros de la serie:
+
+```{r}
+fitAutoArima <- auto.arima(train)
+```
+
+## Significacion de los coeficientes
+
+Para poder verificar que tan significativos son los coeficientes de los modelos se puede hacer la siguiente prueba:
+```{r}
+coeftest(fitArima)
+```
+
+En este caso tenemos un coeficiente significativo.
+
+```{r}
+coeftest(fitAutoArima)
+```
+
+Con el modelo generado automáticamente ningún coeficiente es significativo.
+
+## Análisis de residuales
+
+Es necesario que los residuos no estén correlacionados entre sí y que se distributan normalmente, analizando esto con el modelo fitArima:
+
+```{r}
+qqnorm(fitArima$residuals)
+qqline(fitArima$residuals)
+checkresiduals(fitArima)
+```
+
+Al observar los gráficos obtenidos, los datos aparentan tener una distribución normal respecto a la forma de campana, también puede decirse que no hay correlaciones significativas y según el test de Ljung-Box, tenemos un valor p mayor a 0.05, por lo que los datos se distribuyen de forma independiente, esto quiere decir que no se rechaza la hipótesis nula, esto significa que el modelo generado es aceptable para predecir.
+
+Ahora, utilizando el modelo generado automáticamente por R:
+
+```{r}
+qqnorm(fitAutoArima$residuals)
+qqline(fitAutoArima$residuals)
+checkresiduals(fitAutoArima)
+```
+
+En este caso también se cuenta con una distribución normal en cuanto a la forma de campana y no hay correlaciones significativas. En este caso el valor p es mayor a 0.05, por lo que los datos se distribuyen de forma independiente, esto quiere decir que no se rechaza la hipótesis nula, esto significa que el modelo generado es aceptable para predecir.
+
+## Contrastes respecto a modelos alternativos
+
+```{r}
+AIC(fitArima,fitAutoArima)
+BIC(fitArima, fitAutoArima)
+```
+
+Según la información obtenida tanto en AIC y BIC, en ambos casos fitArima tiene un menor valor, por lo que este podría ser mejor para predecir.
+
+## Predicción
+
+Se harán predicciones por medio de forecast usando la misma cantidad de meses que hay en el conjunto de prueba y comparándolo con los valores reales de este mismo conjunto.
+
+```{r}
+#fitArima %>%
+#  forecast(h) %>%
+#  autoplot() + autolayer(log(test))
+```
+
+Se muestra el siguiente error:
+Error: Invalid input: date_trans works with objects of class Date only
+
+Por lo que la predicción no es posible
+
+## Prophet
+
+Se ha intentado instalar prophet, sin embargo, se cuenta con el siguiente error: 
+Error: package or namespace load failed for ‘prophet’ in .doLoadActions(where, attach):
+ error in load action .__A__.1 for package prophet: Rcpp::loadModule(module = "stan_fit4prophet_mod", what = TRUE, : Unable to load module "stan_fit4prophet_mod": el paquete 'Rcpp_precious_remove' no ofrece la función 'Rcpp'
+ 
+Por lo que la predicción por este medio tampoco es posible
