@@ -2,39 +2,182 @@
 title: "regular"
 output: html_document
 ---
-
+```
+library(xts)
+library(tseries)
+library(forecast)
+library(ggfortify)
+library(lmtest)
+library(fUnitRoots)
+```
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 ## R Markdown
-```regularC <- read.csv("seriec.csv")
+
+importaciones
+```
+regularC <- read.csv("seriec.csv")
 regularI <- read.csv("seriei.csv")
 ```
 
 
-```
+```{r limpieza, echo=FALSE}
 regC.ts<-ts(regularC$GasolinaRegular,start = c(2001,1),frequency = 12)#Regular consumo
+```
 
-plot(regC.ts)#La grafica demuestra que no hay estacionariedad 
+inciso 2b
 
-
+```{r}
+plot(regC.ts)
+```
+inciso 2a para consumo gasolina regular
+```{r}
 start(regC.ts)#inicio
 
 end(regC.ts)#fin
 
 frequency(regC.ts) #frequencia
 ```
+
 Determine si es necesario transformar la serie: se cree que si es necesario dado la no estacionariedad 
 de la data. 
 
-```logRegularc<- log(regC.ts)
+```{r}
+logRegularc<- log(regC.ts)
 plot(logRegularc)
 ```
 
-## Including Plots
+como se puede apreciar no es estacionaria:
 
-You can also embed plots, for example:
+```{r}
+acf(regC.ts)
+```
+
+Test de Dickey-fuller para probar si es estacionaria
+
+```{r}
+adf.test(regC.ts) #test ADF
+```
+
+Se usa la funcion auto.arima() para que nos devuelva los parametros del modelo arima.
+
+```{r}
+auto.arima(regC.ts)#obtecion del modelo
+```
+
+Creacion de modelos arima inciso 2f y 2g:
+
+```{r}
+fit <- arima(log(regC.ts), c(2, 1, 1),seasonal = list(order = c(2, 0, 0), period = 12)) #modleo arima con valores dados por la funcion auto.arima()
+pred <- predict(fit, n.ahead = 10*12)
+ts.plot(regC.ts,2.718^pred$pred, log = "y", lty = c(1,3))
+
+fit2 <- arima(log(regC.ts), c(2, 1, 1),seasonal = list(order = c(0, 1, 0), period = 12))
+
+forecastAP <- forecast(fit, level = c(95), h = 36)
+forecastAD <- forecast(fit2, level = c(95), h = 5)
+```
+
+Analisis residuales: 
+
+```{r}
+checkresiduals(fit)
+checkresiduals(fit2)
+
+coeftest(fit)
+coeftest(fit2)
 
 
+checkresiduals(fit)
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+autoplot(forecastAP)
+
+```
+
+Se puede apreciar que solo el primero modelo es viable para realizar predicciones dado su nivel de significancia de 0.09. 
+
+#importacion
+
+```{r}
+regI.ts<-ts(regularI$GasolinaRegular,start = c(2001,1),frequency = 12)
+#grafico
+plot(regI.ts)#La grafica demuestra que no hay estacionariedad
+
+
+#inicio
+start(regI.ts)
+#fin
+end(regC.ts)
+#frecuencia
+frequency(regI.ts)
+```
+
+transformacion logaritmica
+
+```{r}
+logRegulari<- log(regI.ts)
+plot(logRegulari)
+```
+
+autorrelacion:
+
+```{r}
+acf(logRegulari) #autocorrelacion
+acf(diff(logRegularc),12)#autocorrelacion corregida
+pacf(diff(logRegularc))
+```
+
+este a la vez tampoco es estacionario. 
+
+Test de Dickey-fuller:
+
+```{r}
+adf.test(regI.ts) #test ADF
+```
+obteniendo parametros del modelo arima con la función auto:
+```{r}
+auto.arima(regI.ts)#obtecion del modelo
+```
+
+creacion de modelos arima para serie de importacion
+
+```{r}
+fiti <- arima(log(regI.ts), c(1, 1, 2),seasonal = list(order = c(2, 0, 0), period = 12)) #modleo arima con valores dados por la funcion auto.arima()
+pred <- predict(fit, n.ahead = 10*12)
+ts.plot(regI.ts,2.718^pred$pred, log = "y", lty = c(1,3))
+
+fit2i <- arima(log(regI.ts),seasonal = list(order = c(0, 1, 0), period = 12))
+```
+
+analisis de residuales para la serie de importacion
+
+```{r}
+checkresiduals(fiti)
+checkresiduals(fit2i)
+
+coeftest(fiti)
+
+
+checkresiduals(fiti)
+```
+
+Nuevamente solo el modelo que se implementó con los modelos del auto arima devolvió un nivel de significancia mayor a 0.05 por loi que es el unico viable para predicción. 
+
+predicción a 3 años
+
+```{r}
+forecastAPi2 <- forecast(fit, level = c(95), h = 36)
+forecastAD <- forecast(fit2, level = c(95), h = 36)# a 3 años
+autoplot(forecastAPi2)
+```
+
+predicción de lo que queda del 2021
+
+```{r}
+forecastAPi <- forecast(fit, level = c(95), h = 6)# a 6 meses 
+forecastADi <- forecast(fit2, level = c(95), h = 6)
+
+
+autoplot(forecastAPi)
+```
