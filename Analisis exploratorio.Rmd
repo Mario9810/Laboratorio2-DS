@@ -1,0 +1,449 @@
+---
+title: "Lab1AnalisisPCA"
+author: "Diego Alegria 15171, Ayleen Rubio 19003, Andrés Say 19705, Mario Sarmientos 17055"
+date: "23/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir="C:/Users/andre/OneDrive/Documentos/3er año/2do semestre/Data science/Laboratorio2-DS")
+#"C:/Users/andre/OneDrive/Documentos/3er año/2do semestre/Data science/Laboratorio2-DS"
+```
+
+# Laboratorio No. 2: Series de tiempo
+
+## Análisis Exploratorio
+
+A continuación se mostrará un resumen de cada una de las variables y el tipo 
+```{r carga, echo=FALSE}
+library(corrplot)
+library(ggplot2)
+consumo <- read.csv("DatosConsumoCombustibles.csv")
+importacion <- read.csv("DatosImportacionCombustibles.csv")
+```
+## Datos y variables generales de consumo
+```{r datos consumo, echo=FALSE}
+#Summary
+summary(consumo)
+
+#str
+str(consumo)
+
+#table
+table(unlist(lapply(consumo, class)))
+```
+El dataset de consumo de combustible tiene 27 variables, de las cuales 4 son de tipo entera y 23 son numéricas.
+Se puede encontrar variables temporales como el mes y el año, desde 2000 a 2021 (que como son int representan numéricamente cada una de ellas). Las unidades por barriles de cada tipo de gasolina: GasolinaSuper, GasolinaRegular,TotalGasolinas,Diesel,DieselLS,Diesel,ULS, GLP (combustible alternativo: gas licuado de petróleo) y varios alternativos también, como Orimulsión, Kerosina (combustibles potentes) y derivados similares. La totalidad de combustible Diesel. Por último se tiene agentes accesorios de consumo relacionado como los Aceites lubricantes, grasas lubricantes, solvente, mezclas oleosas y ceras. También cabe mencionar que a simple vista hay una gran proporción de datos faltantes en las variables como DieselLS, DieselULS,turboJet, petCoke, naftas y todas los ogentes accesorios de consumo mencionados anteriormente.
+
+```{r datos importacion, echo=FALSE}
+#Summary
+summary(importacion)
+
+#str
+str(importacion)
+
+#table
+table(unlist(lapply(importacion, class)))
+```
+Luego, en el dataset de importación se tienen 29 variables en total de las cuales 6 son enteras y 23 son numéricas. De nuevo tenemos las temporales, mes y año, de 2001 a 20021. Luego están las variables de los galones de cada tipo de combustible y sus costos respectivos. De igual manera tenemos gasolinaSuper, GasolinaRegular, Diesel, DieselLS, GLP (las alternativas asociadas). El total de Diesel, el total gasolina en general, los combustibles derivados, además de los demás productos como los aceites, grasas, solventes, ceras etc. Por último se tiene el total mensual por la importación de cada una de ellas. 
+
+Se analizará las variables a estudiar del consumo, en este caso; gasolina super, gasolina Regular y Diesel en razón del tiempo. Mes y Año. Para determinar observaciones generales del set de datos. 
+
+## Consumo
+
+Primero se realizará el análisis con la información en el set de datos de consumo.
+
+### consumo de gasolina super por año
+
+```{r consumo anio vs super, echo=FALSE}
+df <- consumo[,c(2,4)]
+p<-ggplot(data=df, aes(x=Anio, y=GasolinaSuper)) +
+  geom_bar(stat="identity")
+p
+```
+
+En la gráfica de barras se muestra el consumo total de cada año de gasolina super, se puede evidenciar que hay un crecimiento en casi todos los años, mientras que al comienzo parece no canviar relativamente mucho, al llegar al año al 2013-2014 hay un aumento significativo en el consumo, probablemente por el aumento parcial de vehiculos durante esos años, tambien se muestran los datos del 2021 (lo que va por el momento) y parece que el consumo llegara a ser bastante de nuevo.
+
+### Consumo de gasolina super por mes
+
+```{r consumo mes vs super, echo=FALSE}
+df <- consumo[,c(3,4)]
+p<-ggplot(data=df, aes(x=Mes, y=GasolinaSuper)) +
+  geom_bar(stat="identity")
+p
+```
+
+En la gráfica anterior se muestra el consumo total que hubo en cada mes de los 21 años. Se puede notar que la cantidad de consumo no varía demasiado entre un mes y el otro, a pesar de que efectivamente en algunos(como en diciembre) parece haber más consumo, probablemente por el aumento sustancial de tránsito vehicular los cambios no son exorbitantes. Cabe mencionar que julio es el mes que menos consumo de gasolina super ha tenido durante estos años.
+
+### Consumo de gasolina regular por año
+
+```{r consumo anio vs regular, echo=FALSE}
+df <- consumo[,c(2,5)]
+p<-ggplot(data=df, aes(x=Anio, y=GasolinaRegular)) +
+  geom_bar(stat="identity")
+p
+```
+
+En esta gráfica se muestra el consumo por año de gasolina tipo super. Como se puede notar, es totalmente evidente que ha habido un crecimiento en la cantidad de vehiculos (y cantidad neta) que utilizan gasolina regular. A partir del 2013 (muy similar al caso del tipo de gasolina anterior) comenzó a aumentar el consumo de manera significativa, y permaneció haciendolo de esa manera hasta el año 2020, en donde a pesar que no es mucho, el consumo disminuyó, probablemente por algunas restricciones de movimiento durante la pandemia.
+
+### Consumo de gasolina regular por mes
+
+```{r consumo mes vs regular, echo=FALSE}
+df <- consumo[,c(3,5)]
+p<-ggplot(data=df, aes(x=Mes, y=GasolinaRegular)) +
+  geom_bar(stat="identity")
+p
+```
+
+Observando la gráfica del consumo en cada mes a lo largo de los 21 años se puede notar (como en la gráfica de gasolina tipo super) que no existe realmente un cambio tan significativo en el consumo durante estos meses. De nuevo el mes que tiene más es diciemibre y el que tiene menos es junio. Por lo que parece ser que esos meses son donde hay mas y menos tránsido respectivamente en cada año.
+
+### Consumo de gasolina Diesel por año 
+
+```{r consumo anio vs Diesel, echo=FALSE}
+df <- consumo[,c(2,7)]
+p<-ggplot(data=df, aes(x=Anio, y=Diesel)) +
+  geom_bar(stat="identity")
+p
+```
+
+En el caso del Diesel el aumento en el consumo, a pesar de que sí existe, no es tan significativo con en la gasolina regular y un poco en la gasolina super. El aumento parcial comenzó de nuevo en el año 2013, por lo que pare lógico asumir que durante esos años (mayormente 2013-2014) comenzó a aumentar bastante la cantidad de vehiculos de cualquier tipo, resultado entonces en un aumento de consumo en todos los combustibles. Es importante mencionar que a partir del 2018 se comenzó a utilizar una "alternativa" de Diesel menos contaminante al ambiente conocida como Combustible Diesel bajo en zufre (DieselLS), por lo que a partir de ese año ya no existen registros de Diesel.
+
+### Consumo de gasolina Diesel por mes
+
+```{r consumo mes vs Diesel, echo=FALSE}
+df <- consumo[,c(3,7)]
+p<-ggplot(data=df, aes(x=Mes, y=Diesel)) +
+  geom_bar(stat="identity")
+p
+```
+
+En la gráfica se puede observar el consumo de combustible Diesel en los meses durante los 21 años. De nuevo, a pesar de que no existen disminuciones abruptas, en el caso del Diesel, parece haber una descenso en el consumo en junio,julio,agosto y septiembre. Luego de estos meses, comienza a aumentar de nuevo. 
+
+## Importaciones
+
+Ahora se analizarán sus proporciones en el set de datos de importaciones, que en base al consumo (la demanda) se espera que sea algo similar.
+
+### Importación de gasolina super por año
+
+```{r importacion anio vs super, echo=FALSE}
+df <- importacion[,c(2,4)]
+p<-ggplot(data=df, aes(x=Anio, y=GasolinaSuper)) +
+  geom_bar(stat="identity")
+p
+```
+
+En esta gráfica se puede ver la tasa de importación de gasolina tipo super tiene un compartamiendo extremadamente similar a la grafica de super vs anio del set de datos de consumo, Se puede notar en este caso como al comienzo de los 2001 el aumento de la tasa de importanción aumenta lentamente llega a un intervalo relativamente estable y de nuevo en el 2013-2014 aumenta. 
+
+### Importación de gasolina super por mes
+
+```{r importacion mes vs super, echo=FALSE}
+df <- importacion[,c(3,4)]
+p<-ggplot(data=df, aes(x=Mes, y=GasolinaSuper)) +
+  geom_bar(stat="identity")
+p
+```
+
+En la gráfica de impotación de gasolina super por mes se observa el comportamiento similar que el la gráfica de consumo, la cual tiene un comportamiento muy similar a lo largo de los meses. Sin embargo la importación máxima y mínima (Diciembre y junio respectivamente), varía levemente en esta gráfica, en donde marzo tiene más tasa de importación y septiembre la mínima.
+
+### Importación de gasolina regular por año
+
+```{r importacion anio vs regular, echo=FALSE}
+df <- importacion[,c(2,5)]
+p<-ggplot(data=df, aes(x=Anio, y=GasolinaRegular)) +
+  geom_bar(stat="identity")
+p
+```
+
+En el gráfico de importación de combustible anual se puede notar un comportamiento de crecimiento apresurado desde el año 2013, mismo comportamiento que en la gráfica de consumo.
+
+### Importación de gasolina regular por mes
+```{r importacion mes vs regular, echo=FALSE}
+df <- importacion[,c(3,5)]
+p<-ggplot(data=df, aes(x=Mes, y=GasolinaRegular)) +
+  geom_bar(stat="identity")
+p
+```
+
+Como se puede evidenciar en el gráfico a pesar de que sigue existiendo una frecuencia de importación a corde con la gráfica de consumo respectiva. Sin embargo, de nuevo se muestra una diferencia entre el mínimo y el máximo, en donde en este caso hay dos mínimos, julio y septiembre, mientras que marzo sigue siendo el mes con más importación.
+
+
+### Importación de gasolina Diesel por año 
+
+```{r importacion anio vs Diesel, echo=FALSE}
+df <- importacion[,c(2,7)]
+p<-ggplot(data=df, aes(x=Anio, y=Diesel)) +
+  geom_bar(stat="identity")
+p
+```
+
+En esta gráfica se puede ver que hay un crecimiento en la importación de Diesel. Si se compara con su gráfica respectiva de consumo se puede ver un comportamiento muy similar, en donde a partirde (2012 en el otro caso) 2010 comienza un crecimiento notable en la importación hasta que en 2018 se implementa el uso del Diesel bajo en azufre
+
+### Importación de gasolina Diesel por mes
+```{r importacion mes vs Diesel, echo=FALSE}
+df <- importacion[,c(3,7)]
+p<-ggplot(data=df, aes(x=Mes, y=Diesel)) +
+  geom_bar(stat="identity")
+p
+```
+
+En su gráfica respectiva por mes, no hay ningún cambio significativo tampoco. En este caso Diciembre es el mes con más tasa de importación y septiembre el que tiene menos tasa.
+
+### Importación de gasolina Diesel baja en azufre por año 
+
+```{r importacion anio vs DieselLS, echo=FALSE}
+df <- importacion[,c(2,8)]
+p<-ggplot(data=df, aes(x=Anio, y=DieselLS)) +
+  geom_bar(stat="identity")
+p
+```
+
+En la tasa de Diesel baja en azufre se ve que al momento que desde que se ha comenzado a implementar, ha tenido una importación muy similar en los años, con su pico en 2019. si vemos el eje y,y lo comparamos con el gráfico de Diesel anterior, se puede evidenciar que el consumo es muy similar a aquellos años despues del 2015, en 2020, a pesar de la pandemio, si hubo una importación notable.
+
+### Importación de gasolina Diesel por mes
+
+```{r importacion mes vs DieselLS, echo=FALSE}
+df <- importacion[,c(3,8)]
+p<-ggplot(data=df, aes(x=Mes, y=DieselLS)) +
+  geom_bar(stat="identity")
+p
+```
+
+En la gráfica Se puede observar que los primeros meses, hasta mayo parece haber una importación mucho mayor a los meses siguientes. A partir de unio parece no haber muchos cambios en la cantidad de Diesel bajo en azufre exportado
+
+
+
+
+### entre importación y consumo de gasolina super
+```{r correlacion consumo e importacionn super, echo=FALSE}
+library("dplyr")
+set.seed(12345)
+
+#dim(consumo)
+consumoC <- sample_n(consumo, 245)
+#dim(consumoC)
+#dim(importacion)
+plot(x = consumoC$GasolinaSuper, y= importacion$GasolinaSuper, xlab= "Importación de Gasolina super", ylab= "Exportación de gasolina super", main = "Correlación de exportación e importación de gasolina super")
+abline(lm(consumoC$GasolinaSuper ~ importacion$GasolinaSuper), col = "red")
+```
+
+En el diagrama de correlación anterior se ejemplifica la exportación e importación de gasolina Super, para observar si lo visto en los diagramas de barras se puede comprobar de mejor manera. Muchas gráficas se parecían enormemente, a pesar de tener varios puntos atípicos, los puntos siguen la linea de tendencia (horizontalmente).
+
+## Pruebas de normalidad para cada tipo de gasolina en consumo
+
+### consumo Gasolina Super 
+
+```{r normalHistGasSuper Consumo, echo=FALSE}
+library (ggplot2)
+ggplot(data = consumo, aes(x = GasolinaSuper)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(consumo$GasolinaSuper),
+                            sd = sd(consumo$GasolinaSuper)))+
+  ggtitle("Histograma con curva normal teórica de los dato de gasolina tipo super") + 
+  theme_bw()
+```  
+
+En el gráfico anterior se evidencia que el consumo de gasolina no cumple una distribución nomal, además de tener un sesgo muy notable a la izquierda, parecen formar dos conjuntos de datos. 
+
+```{r normalBoxGasSuper consumo, echo=FALSE}
+boxplot(consumo$GasolinaSuper, main = "Caja y Bigotes de la gasolina tipo super", xlab = "Gasolina Super")
+```
+
+Observando el diagrama de caja y bigotes se peuede notar que hay una gran variabilidad entre la media y los demás datos, sin embargo, no existen tantos datos atípidos, ni por encima ni por debajo, por lo que en este diagrama si cumple normalidad.
+
+
+```{r normalQQgasSuper consumo, echo=FALSE}
+qqnorm(consumo$GasolinaSuper, col="blue")
+qqline(consumo$GasolinaSuper, col="red")
+```
+
+Por último para el consumo de gasolina super se puede ver en el gráfico QQ normal que a pesar de que existe un patrón desvariado en los datos, de ciertamenta (no muy evidente) si sigue la linea de tendencia y por lo tanto se podría considerar normal.
+
+
+### Gasolina Regular
+
+```{r normalHistGasRegular Consumo, echo=FALSE}
+library (ggplot2)
+ggplot(data = consumo, aes(x = GasolinaRegular)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(consumo$GasolinaRegular),
+                            sd = sd(consumo$GasolinaRegular)))+
+  ggtitle("Histograma con curva normal teórica de los dato de gasolina tipo regular") + 
+  theme_bw()
+```  
+
+El el histograma del consumo de la gasolina tipo regular se puede notar un sesgo de nuevo muy marcado a la izquierda, este es de hecho, más evidente que en la gráfica anterior, además, cabe mencionar que la distribución de datos es mucho más dispersa, por lo que no cumple con la distribución normal según la capana de Gauss.
+
+
+```{r normalBoxGasRegular consumo, echo=FALSE}
+boxplot(consumo$GasolinaRegular, main = "Caja y Bigotes de la gasolina tipo regular", xlab = "Gasolina regular")
+```
+
+Observando el diagrama de caja y bigotes, nuevamente se puede ver que hay varios datos que se alejan significativamente de la media, más por encima que por debajo, pero niguno de ellos es atípico, por lo que si muestra normalidad.
+
+
+```{r normalQQgasRegular consumo, echo=FALSE}
+qqnorm(consumo$GasolinaRegular, col="blue")
+qqline(consumo$GasolinaRegular, col="red")
+```
+
+Por último para el consumo de gasolina regular se puede observar de cierta manera que si cumple con la normalidad en el diagrama QQ normal, ya que a pesar de no seguirla perfectamente, si parece están cerca de la linea de tendencia.
+
+### Diesel
+
+```{r normalHistDiesel Consumo, echo=FALSE}
+library (ggplot2)
+ggplot(data = consumo, aes(x = Diesel)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(consumo$Diesel),
+                            sd = sd(consumo$Diesel)))+
+  ggtitle("Histograma con curva normal teórica de los dato de gasolina tipo super") + 
+  theme_bw()
+```  
+
+Para el Diesel en el set de datos de consumo, se puede notar que, al menos en el histograma no cumple con la normalidad. Se puede ver un sesgo a la izquierda y una gran cola a la derecha.
+
+```{r normalBoxGasDiesel consumo, echo=FALSE}
+boxplot(consumo$Diesel, main = "Caja y Bigotes de la gasolina tipo super", xlab = "Gasolina Super")
+```
+
+En el diagrama de caja y bigotes para el diesel se pueden notar más datos centrados en la media. Adicionalmente se ven muchos más puntos atípicos en este diagrama que en los anteriores, dificilmente se podría decir que cumple con normalidad.
+
+
+```{r normalQQgasDiesel consumo, echo=FALSE}
+qqnorm(consumo$Diesel, col="blue")
+qqline(consumo$Diesel, col="red")
+```
+
+En el diagrama QQ normal para el consumo de Diesel es totalmente evidente que bajo esta prueba, si cumple normalidad, ya que la distribución de los datos parece seguir de manera muy certera la linea de tendencia.
+
+## Pruebas de normalidad para cada tipo de gasolina en importación 
+
+### Super
+
+```{r normalHistGasSuper Importacion, echo=FALSE}
+library (ggplot2)
+ggplot(data = importacion, aes(x = GasolinaSuper)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(importacion$GasolinaSuper),
+                            sd = sd(importacion$GasolinaSuper)))+
+  ggtitle("Histograma con curva normal teórica de los dato de gasolina tipo super") + 
+  theme_bw()
+```  
+
+Comenzando con el histograma para el combustible importado, gasolina super. Es posible ver que, aunque no parece seguir una forma perfecta de campana de Gauss si tiene varios rasgos que parecen cumplir con normalidad bajo este criterio. Cabe mencionar que si hay un punto atípico que parece jalar la media(1250000).
+
+```{r normalBoxGasSuper Importacion, echo=FALSE}
+boxplot(importacion$GasolinaSuper, main = "Caja y Bigotes de la gasolina tipo super", xlab = "Gasolina Super")
+```
+
+En el diagrama de caja y bigotes de la importación de la gasolina tipo super se puede observar que casi todos los datos parecen estar concentrados en un intervalo aceptable. Solo se ve un punto atípico por lo que si parece seguir una distribución normal.
+
+
+```{r normalQQgasSuper Importacion, echo=FALSE}
+qqnorm(importacion$GasolinaSuper, col="blue")
+qqline(importacion$GasolinaSuper, col="red")
+```
+
+En e diagrama QQ normal es evidente que si sigue una distribución normal casi perfecta. esta variable cumple con las tres pruebas de normalidad.
+
+### Regular
+
+```{r normalHistGasRegular Importacion, echo=FALSE}
+library (ggplot2)
+ggplot(data = importacion, aes(x = GasolinaRegular)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(importacion$GasolinaRegular),
+                            sd = sd(importacion$GasolinaRegular)))+
+  ggtitle("Histograma con curva normal teórica de los dato de gasolina tipo regular") + 
+  theme_bw()
+```  
+
+En este histograma se puede ver un sesgo a la izquierda y una gran distribución dispersa de datos referentes a la gasolina regular, por lo que no parece seguir una distribución normal.
+
+```{r normalBoxGasRegular Importacion, echo=FALSE}
+boxplot(importacion$GasolinaRegular, main = "Caja y Bigotes de la gasolina tipo regular", xlab = "Gasolina Super")
+```
+
+Observando el gráfico de caja y bigotes se puede notar que hay varios datos que se encuentran sobre la media, sin mencionar del punto atípico, a pesar de eso, se puede decir que bajo este criterio si cumple con normalidad.
+
+
+```{r normalQQgasRegular Importacion, echo=FALSE}
+qqnorm(importacion$GasolinaRegular, col="blue")
+qqline(importacion$GasolinaRegular, col="red")
+```
+
+En el gráfico QQ normal de este tipo de gasolina, se puede notar que sigue muy bien la linea de tendencia, por lo que si cumple normalidad.
+
+### Diesel
+
+```{r normalHistGasDiesel Importacion, echo=FALSE}
+library (ggplot2)
+ggplot(data = importacion, aes(x = Diesel)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(importacion$Diesel),
+                            sd = sd(importacion$Diesel)))+
+  ggtitle("Histograma con curva normal teórica de los dato de Diesel") + 
+  theme_bw()
+```  
+
+Para los datos de importación de Diesel se puede notar que en el histograma, a pesar de no seguir una forma perfecta de la campana de Gauss (que es teórica) si parece cumplir con normalidad y no presenta sesgos significativos. 
+
+```{r normalBoxGasDiesel Importacion, echo=FALSE}
+boxplot(importacion$Diesel, main = "Caja y Bigotes de la gasolina tipo Diesel", xlab = "Diesel")
+```
+
+Observando el diagrama de caja y bigotes se puede ver que muchos datos si cumplen con el supuesto de normalidad, sin contar los 4 puntos sobre el cuartil, si parece cumplir normalidad.
+
+
+```{r normalQQgasDiesel Importacion, echo=FALSE}
+qqnorm(importacion$Diesel, col="blue")
+qqline(importacion$Diesel, col="red")
+```
+
+En este gráfico se puede ver que los datos de importacion de Diesel si siguen una distribución normal ya que estan acorde de la linea de tendencia.
+
+### DieselLS
+
+```{r normalHistGasDieselLS Importacion, echo=FALSE}
+library (ggplot2)
+ggplot(data = importacion, aes(x = Diesel)) + 
+  geom_histogram(aes(y=..density.., fill = ..count..))+
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C")+
+  stat_function(fun = dnorm, colour = "firebrick",
+                args = list(mean = mean(importacion$DieselLS),
+                            sd = sd(importacion$DieselLS)))+
+  ggtitle("Histograma con curva normal teórica de los dato de Diesel bajo en azufre") + 
+  theme_bw()
+```  
+
+Por último, debido a que, como dicho anteriormente, fue hasta el 2017 que se utilizó Diesel "normal" y se comenzó a utilizar el 2018 Diesel bajo en azufre. En su histograma se puede ver que efectivamente parece seguir una distribución normal, además de no presentar sesgos significativos.
+
+```{r normalBoxGasDieselLS Importacion, echo=FALSE}
+boxplot(importacion$DieselLS, main = "Caja y Bigotes de la gasolina tipo Diesel", xlab = "Diesel bajo en azufre")
+```
+
+En el diagrama de caja y bigotes se puede observar que no hay ningún punto atípico, además de que los cuartiles si parecen seguir normalidad.
+
+
+```{r normalQQgasDieselLS Importacion, echo=FALSE}
+qqnorm(importacion$DieselLS, col="blue")
+qqline(importacion$DieselLS, col="red")
+```
+
+Por último, en el diagrama QQ normal se puede observar que los datos si siguen la linea de tendencia (son pocos debido a que solo han sido almacenados 4 años) y por lo tanto si cumplen con normalidad.
+
+
+
